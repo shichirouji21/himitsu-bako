@@ -1,12 +1,32 @@
 # Himitsu Bako
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/shichirouji21/himitsu-bako/releases/tag/v1.0.0)
+[![AUR](https://img.shields.io/badge/AUR-himitsu--bako--bin-1793d1)](https://aur.archlinux.org/packages/himitsu-bako-bin)
+[![License](https://img.shields.io/badge/license-BSD--2--Clause-green)](LICENSE)
 
 Encrypted clipboard-backed secret storage using [`age`](https://age-encryption.org/).
 
 `himitsu-bako` is a small terminal helper for saving and retrieving text secrets quickly. It reads text from your clipboard, stores it encrypted on disk, and copies revealed secrets back to your clipboard.
 
 ## Install
+
+### Arch Linux
+
+```bash
+paru -S himitsu-bako-bin
+```
+
+or with another AUR helper:
+
+```bash
+yay -S himitsu-bako-bin
+```
+
+To build from source instead of using the prebuilt release binary:
+
+```bash
+paru -S himitsu-bako
+```
 
 ### Nix (any supported system)
 
