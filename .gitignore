@@ -1,0 +1,15 @@
+# Compiled binaries
+/himitsu-bako
+/himitsu-bako.exe
+
+# Go build cache and module cache (for `go install` overrides)
+/dist/
+/result
+/result-*
+
+# Editor and OS noise
+*.swp
+.DS_Store
+
+# Local env
+.envrc
