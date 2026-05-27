@@ -21,7 +21,7 @@ import (
 
 const storeName = "himitsu-bako"
 
-const version = "1.0.0"
+const version = "1.1.0"
 
 const defaultClearTimeoutSeconds = 30
 
@@ -58,12 +58,14 @@ func run(args []string) error {
 	flags := flag.NewFlagSet("himitsu-bako", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	save := flags.Bool("s", false, "save current clipboard as an encrypted secret")
-	remove := flags.Bool("r", false, "remove a secret with fzf")
+	deleteFlag := flags.Bool("d", false, "delete a secret with fzf")
+	renameFlag := flags.Bool("r", false, "rename a secret with fzf")
 	help := flags.Bool("h", false, "show help")
 	versionFlag := flags.Bool("v", false, "print version and exit")
 	timeout := flags.Int("timeout", defaultClearTimeoutSeconds, "seconds before clearing the clipboard after reveal (0 to disable)")
 	flags.BoolVar(save, "save", false, "save current clipboard as an encrypted secret")
-	flags.BoolVar(remove, "remove", false, "remove a secret with fzf")
+	flags.BoolVar(deleteFlag, "delete", false, "delete a secret with fzf")
+	flags.BoolVar(renameFlag, "rename", false, "rename a secret with fzf")
 	flags.BoolVar(help, "help", false, "show help")
 	flags.BoolVar(versionFlag, "version", false, "print version and exit")
 	flags.Usage = usage
@@ -80,7 +82,13 @@ func run(args []string) error {
 		fmt.Printf("himitsu-bako %s\n", version)
 		return nil
 	}
-	if *save && *remove {
+	actions := 0
+	for _, enabled := range []bool{*save, *deleteFlag, *renameFlag} {
+		if enabled {
+			actions++
+		}
+	}
+	if actions > 1 {
 		return errors.New("choose only one action")
 	}
 	if *timeout < 0 {
@@ -99,11 +107,16 @@ func run(args []string) error {
 			return errors.New("-s does not accept a secret name")
 		}
 		return saveSecret(st)
-	case *remove:
+	case *deleteFlag:
+		if len(remaining) != 0 {
+			return errors.New("-d does not accept a secret name")
+		}
+		return deleteSecret(st)
+	case *renameFlag:
 		if len(remaining) != 0 {
 			return errors.New("-r does not accept a secret name")
 		}
-		return removeSecret(st)
+		return renameSecret(st)
 	case len(remaining) == 0:
 		return revealWithFZF(st, *timeout)
 	default:
@@ -112,12 +125,13 @@ func run(args []string) error {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [-s|-r|name] [--timeout=N]\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s [-s|-d|-r|name] [--timeout=N]\n", os.Args[0])
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "With no argument, reveal a saved secret with fzf.")
 	fmt.Fprintln(os.Stderr, "  name           Reveal the exact secret name without fzf.")
 	fmt.Fprintln(os.Stderr, "  -s, --save     Save the current clipboard as an encrypted secret.")
-	fmt.Fprintln(os.Stderr, "  -r, --remove   Remove a secret with fzf.")
+	fmt.Fprintln(os.Stderr, "  -d, --delete   Delete a secret with fzf.")
+	fmt.Fprintln(os.Stderr, "  -r, --rename   Rename a secret with fzf.")
 	fmt.Fprintf(os.Stderr, "  --timeout=N    Clear the clipboard N seconds after reveal (default %d, 0 disables).\n", defaultClearTimeoutSeconds)
 	fmt.Fprintln(os.Stderr, "  -v, --version  Print version and exit.")
 	fmt.Fprintln(os.Stderr, "  -h, --help     Show this help.")
@@ -299,24 +313,70 @@ func revealByName(st store, name string, timeoutSeconds int) error {
 	return copySecretToClipboard(identity, secretRecord{name: name, path: matches[0]}, timeoutSeconds)
 }
 
-func removeSecret(st store) error {
+func deleteSecret(st store) error {
 	identity, err := ensureStoreForRead(st)
 	if err != nil {
 		return err
 	}
-	record, err := selectSecretRecord(st, identity, "remove secret> ")
+	record, err := selectSecretRecord(st, identity, "delete secret> ")
 	if err != nil {
 		return err
 	}
 	if err := os.Remove(record.path); err != nil {
-		return fmt.Errorf("failed to remove %q: %w", record.name, err)
+		return fmt.Errorf("failed to delete %q: %w", record.name, err)
 	}
-	fmt.Fprintf(os.Stderr, "Removed %q.\n", record.name)
+	fmt.Fprintf(os.Stderr, "Deleted %q.\n", record.name)
+	return nil
+}
+
+func renameSecret(st store) error {
+	identity, err := ensureStoreForRead(st)
+	if err != nil {
+		return err
+	}
+	record, err := selectSecretRecord(st, identity, "rename secret> ")
+	if err != nil {
+		return err
+	}
+	newName, err := promptSecretNameWithPrompt("New secret name: ")
+	if err != nil {
+		return err
+	}
+	if newName == record.name {
+		fmt.Fprintf(os.Stderr, "Secret is already named %q.\n", record.name)
+		return nil
+	}
+
+	matches, err := findSecretFilesByName(st, identity, newName)
+	if err != nil {
+		return err
+	}
+	if len(matches) > 0 {
+		return fmt.Errorf("secret %q already exists", newName)
+	}
+
+	payload, err := decryptFile(identity, record.path)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt %q: %w", record.name, err)
+	}
+	_, secret, ok := bytes.Cut(payload, []byte("\n"))
+	if !ok {
+		return fmt.Errorf("secret %q has invalid payload", record.name)
+	}
+	renamedPayload := append([]byte(newName+"\n"), secret...)
+	if err := encryptPayloadToFile(renamedPayload, record.path, identity.Recipient()); err != nil {
+		return fmt.Errorf("failed to rename %q: %w", record.name, err)
+	}
+	fmt.Fprintf(os.Stderr, "Renamed %q to %q.\n", record.name, newName)
 	return nil
 }
 
 func promptSecretName() (string, error) {
-	fmt.Fprint(os.Stderr, "Secret name: ")
+	return promptSecretNameWithPrompt("Secret name: ")
+}
+
+func promptSecretNameWithPrompt(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
 	name, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return "", fmt.Errorf("failed to read secret name: %w", err)

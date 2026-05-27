@@ -1,6 +1,6 @@
 # Himitsu Bako
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/shichirouji21/himitsu-bako/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/shichirouji21/himitsu-bako/releases/tag/v1.1.0)
 [![AUR](https://img.shields.io/badge/AUR-himitsu--bako--bin-1793d1)](https://aur.archlinux.org/packages/himitsu-bako-bin)
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-green)](LICENSE)
 
@@ -76,7 +76,7 @@ go build -o himitsu-bako.exe .
 | Tool | Purpose |
 | --- | --- |
 | Go | Builds the `himitsu-bako` binary. |
-| `fzf` | Interactive secret selection for reveal and remove. Exact-name reveal does not need `fzf`. |
+| `fzf` | Interactive secret selection for reveal, delete, and rename. Exact-name reveal does not need `fzf`. |
 | Clipboard tool | Reads and writes clipboard text. |
 
 `himitsu-bako` uses the Go age library internally. The `age` command-line tool is not required at runtime.
@@ -105,7 +105,8 @@ winget install GoLang.Go junegunn.fzf
 ./himitsu-bako                  # reveal a secret with fzf and copy it to the clipboard
 ./himitsu-bako azure-token      # reveal exact secret name without fzf
 ./himitsu-bako -s               # save current clipboard as an encrypted secret
-./himitsu-bako -r               # remove a secret with fzf
+./himitsu-bako -d               # delete a secret with fzf
+./himitsu-bako -r               # rename a secret with fzf
 ./himitsu-bako --timeout=0 foo  # reveal without auto-clearing the clipboard
 ```
 
@@ -131,13 +132,21 @@ The tool opens `fzf`, lets you pick a secret by name, and copies the decrypted v
 ./himitsu-bako azure-token
 ```
 
-Remove flow:
+Delete flow:
+
+```bash
+./himitsu-bako -d
+```
+
+The tool opens `fzf`, lets you pick a secret by name, and deletes the encrypted file.
+
+Rename flow:
 
 ```bash
 ./himitsu-bako -r
 ```
 
-The tool opens `fzf`, lets you pick a secret by name, and deletes the encrypted file.
+The tool opens `fzf`, lets you pick a secret by name, asks for the new name, and rewrites the encrypted file with the same secret value under the new name.
 
 ## Storage
 

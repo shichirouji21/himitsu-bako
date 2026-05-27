@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+* Delete saved secrets with `-d` (`--delete`) instead of `-r`.
+* Rename saved secrets with `-r` (`--rename`).
+* Remove the old `--remove` flag.
+
 ## 1.0.0
 
 * First release.
