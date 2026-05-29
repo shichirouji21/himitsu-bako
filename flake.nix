@@ -7,18 +7,17 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-
-        runtimeDeps =
-          [ pkgs.fzf ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-            pkgs.wl-clipboard
-            pkgs.xclip
-          ];
-
-        himitsu-bako = pkgs.buildGoModule {
+    let
+      mkHimitsuBako = pkgs:
+        let
+          runtimeDeps =
+            [ pkgs.fzf ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              pkgs.wl-clipboard
+              pkgs.xclip
+            ];
+        in
+        pkgs.buildGoModule {
           pname = "himitsu-bako";
           version = "1.1.0";
 
@@ -43,6 +42,17 @@
             platforms = platforms.unix;
           };
         };
+    in
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        himitsu-bako = mkHimitsuBako pkgs;
+        runtimeDeps =
+          [ pkgs.fzf ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.wl-clipboard
+            pkgs.xclip
+          ];
       in {
         packages.default = himitsu-bako;
         packages.himitsu-bako = himitsu-bako;
@@ -52,5 +62,9 @@
         devShells.default = pkgs.mkShell {
           packages = [ pkgs.go pkgs.gopls ] ++ runtimeDeps;
         };
-      });
+      }) // {
+        overlays.default = final: _prev: {
+          himitsu-bako = mkHimitsuBako final;
+        };
+      };
 }

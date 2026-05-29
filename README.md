@@ -37,6 +37,40 @@ nix profile install github:shichirouji21/himitsu-bako
 
 The Nix package wraps `himitsu-bako` so `fzf`, `wl-clipboard`, and `xclip` are available without separate installation.
 
+For NixOS, nix-darwin, or Home Manager flakes, add `himitsu-bako` as an input:
+
+```nix
+inputs.himitsu-bako.url = "github:shichirouji21/himitsu-bako";
+```
+
+Then install the package directly from the input:
+
+```nix
+environment.systemPackages = [
+  inputs.himitsu-bako.packages.${pkgs.stdenv.hostPlatform.system}.default
+];
+```
+
+Home Manager uses `home.packages` instead:
+
+```nix
+home.packages = [
+  inputs.himitsu-bako.packages.${pkgs.stdenv.hostPlatform.system}.default
+];
+```
+
+Or enable the overlay and install it as `pkgs.himitsu-bako`:
+
+```nix
+nixpkgs.overlays = [
+  inputs.himitsu-bako.overlays.default
+];
+
+environment.systemPackages = with pkgs; [
+  himitsu-bako
+];
+```
+
 ### Go
 
 ```bash
